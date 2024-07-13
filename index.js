@@ -1,127 +1,83 @@
 const express = require('express')
-const morgan = require('morgan')
+const cors = require('cors')
 const app = express()
 
-let book = [
-    { 
-      id: "1",
-      name: "Arto Hellas", 
-      number: "040-123456"
-    },
-    { 
-      id: "2",
-      name: "Ada Lovelace", 
-      number: "39-44-5323523"
-    },
-    { 
-      id: "3",
-      name: "Dan Abramov", 
-      number: "12-43-234345"
-    },
-    { 
-      id: "4",
-      name: "Mary Poppendieck", 
-      number: "39-23-6423122"
-    }
+let notes = [
+  {
+    id: 1,
+    content: "HTML is easy",
+    important: true
+  },
+  {
+    id: 2,
+    content: "Browser can execute only JavaScript",
+    important: false
+  },
+  {
+    id: 3,
+    content: "GET and POST are the most important methods of HTTP protocol",
+    important: true
+  }
 ]
 
+app.use(cors())
 
-// const requestLogger = (request, response, next) => {
-//     console.log('Method:', request.method)
-//     console.log('Path:  ', request.path)
-//     console.log('Body:  ', request.body)
-//     console.log('---')
-//     next()
-//   }
-// app.use(requestLogger)
+app.use(express.json())
 
-app.use(express.json());
-
-app.use(morgan(function (tokens, req, res) {
-    return [
-      tokens.method(req, res),
-      tokens.url(req, res),
-      tokens.status(req, res),
-      tokens.res(req, res, 'content-length'), '-',
-      tokens['response-time'](req, res), 'ms',
-      JSON.stringify(req.body)
-    ].join(' ')
-  }))
-
-
-app.get('/api/persons', (request, response) => {
-    response.json(book)
+app.get('/', (request, response) => {
+  response.send('<h1>Hello World!</h1>')
 })
 
-app.get('/api/persons/:id', (request, response) => {
-    const id = String(request.params.id)
-    const person = book.find(guy => guy.id === id)
-    if (person) {
-        response.json(person)
-    } else {
-        console.log(`No person found with ID ${id}`)
-        response.status(404).end()
-    }
+app.get('/api/notes', (request, response) => {
+  response.json(notes)
 })
 
-app.get('/info', (request, response) => {
+const generateId = () => {
+  const maxId = notes.length > 0
+    ? Math.max(...notes.map(n => n.id))
+    : 0
+  return maxId + 1
+}
 
-    let date = new Date()
+app.post('/api/notes', (request, response) => {
+  const body = request.body
 
-    response.send(`
-        <div>
-            <p>Phonebook has info for 2 people</p>
-            <p>${date}</p>
-        </div>
-    `);
-})
-
-app.delete('/api/persons/:id', (request, response) => {
-    const id = String(request.params.id)
-    book = book.filter(person => person.id !== id)
-
-    response.status(204).end()
-})
-
-app.post('/api/persons', (request, response) => {
-    const body = request.body
-
-    // console.log(request.headers)
-
-    if (!body.name) {
-        return response.status(400).json({
-            error: 'error missing name'
-        })
-    } else if (!body.number) {
-        return response.status(400).json({
-            error: 'error missing number'
-        })
-    }
-
-    if (book.find(person => person.name === body.name)) {
-        return response.status(409).json({
-            error: 'Name already exists'
-        })
-    }
-
-    const person = {
-        id: Math.floor(Math.random() * 100),
-        name: body.name,
-        number: body.number,
-    }
-
-    book = book.concat(person)
-
-    response.json(person)
-})
-
-const unknownEndpoint = (request, response) => {
-    response.status(404).send({ error: 'unknown endpoint' })
+  if (!body.content) {
+    return response.status(400).json({ 
+      error: 'content missing' 
+    })
   }
-  
-  app.use(unknownEndpoint)
 
-let PORT = 3001
+  const note = {
+    content: body.content,
+    important: body.important || false,
+    id: generateId(),
+  }
+
+  notes = notes.concat(note)
+
+  response.json(note)
+})
+
+app.get('/api/notes/:id', (request, response) => {
+  const id = Number(request.params.id)
+  const note = notes.find(note => note.id === id)
+  if (note) {
+    response.json(note)
+  } else {
+    console.log('x')
+    response.status(404).end()
+  }
+})
+
+app.delete('/api/notes/:id', (request, response) => {
+  const id = Number(request.params.id)
+  notes = notes.filter(note => note.id !== id)
+
+  response.status(204).end()
+})
+
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
+  console.log(`Server running on port ${PORT}`)
 })
